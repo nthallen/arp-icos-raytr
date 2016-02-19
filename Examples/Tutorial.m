@@ -55,9 +55,19 @@ P.herriott_spacing = hs;
 P.stop_ICOS = 0;
 P.visible = 1;
 PM = ICOS_Model6(P);
+% Note only 3 bounces in Herriott cell still. That's due to max_rays
+% default limit of 60.
 %%
 P.max_rays = 3000;
 P.ICOS_passes_per_injection = 60;
 PM = ICOS_Model6(P);
-
-
+%%
+% Now try to focus:
+P.HR = 0; % turn of Herriott cell again
+P.visibility = [0 0 0]; % Hide the first three optics, just show focus
+P.max_rays = 1000; % Back off on number of rays
+P.Lenses = { 'Lens1' }; % Use out one really big lens
+P.Lens_Space = 1; % place it at 1 cm after the ICOS mirror
+P.focus = 1; % Allow beam propagation to continue after the ICOS cell
+P.detector_spacing = 10; % Place detector 10 cm after the last lens
+PM = ICOS_Model6(P);

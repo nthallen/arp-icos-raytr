@@ -395,10 +395,11 @@ classdef ICOS_beam < handle
     end
     
     function ff = Integrate(IB)
-      % IB.Integrate;
+      % ff = IB.Integrate;
       % Analyzes rays from the Sample operation to generate heat
       % maps in the plane of a particular optical element, usually
-      % the detector.
+      % the detector. If an output argument is specified, the
+      % heat maps are displayed.
       % All options are set during the Sample phase.
       if ~isstruct(IB.Res)
         error('MATLAB:HUARP:Unsampled', ...
@@ -406,6 +407,9 @@ classdef ICOS_beam < handle
       end
       if ~isfield(IB.IBP,'mnc')
         IB.IBP.mnc = 'ib.def';
+      end
+      if ~isfield(IB.IBP,'theta')
+        IB.IBP.theta = 0;
       end
       Nsamples = IB.IBP.beam_samples;
       T = IB.P.T;

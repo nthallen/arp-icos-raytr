@@ -55,13 +55,13 @@ classdef ICOS_search < handle
       IS.ISopt.RR1_lim = [-inf inf];
       IS.ISopt.L_lim = [0 inf];
       IS.ISopt.RL_lim = [2 inf];
-      IS.ISopt.RD1_margin = 1; % cm. When RR1 is set, this is added to Rr1 to determine RD1
+      IS.ISopt.RD1_margin = 2; % cm. When RR1 is set, this is added to Rr1 to determine RD1
       IS.ISopt.RD1_lip = 0;
       IS.ISopt.RD1_resolution = 2.54/4;
-      IS.ISopt.D1_margin = 1; % cm. When R1 is set, this is added to r1 to determine D1
+      IS.ISopt.D1_margin = 0.3; % cm. When R1 is set, this is added to r1 to determine D1
       IS.ISopt.D1_lip = 0.125*2.54; % cm on the radius.
       IS.ISopt.D1_resolution = 2.54/4; % Applies to radius
-      IS.ISopt.D2_margin = 1; % cm. When R2 is set, this is added to r2 to determine D2
+      IS.ISopt.D2_margin = 0.3; % cm. When R2 is set, this is added to r2 to determine D2
       IS.ISopt.D2_lip = 0.125*2.54; % cm on the radius
       IS.ISopt.D2_resolution = 2.54/4; % applies to radius
       IS.ISopt.focus_visible = 1; % 0: don't draw any focus 1: just finished focus 2: each iteration

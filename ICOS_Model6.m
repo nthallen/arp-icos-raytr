@@ -147,10 +147,10 @@ classdef ICOS_Model6 < opt_model_p
         y = [];
       end
       if nargout > 3
-        ri = i;
+        ri = j;
       end
       if nargout > 4
-        ci = j;
+        ci = i;
       end
     end
   end
@@ -158,22 +158,28 @@ classdef ICOS_Model6 < opt_model_p
   methods (Static)
     function P = props
       P.optics_n = 2.4361;
+      P.mirrors_n = [];
+      P.lenses_n = [];
       % Herriott Mirror
       P.herriott_spacing = 10; % Before the first ICOS mirror
       P.HRC = 15*2.54; % Herriott radius of curvature
       P.HCT = 0.2;
       P.Hr = 1.5*2.54; % Herriott radius
       P.HR = 0.98; % Herriott reflectivity
+      P.C = 3000; % Laser coherence length or equivalent, cm
+      P.dP = []; % Differential pressure in Torr
       
       % ICOS Mirrors
       P.T = 250e-6; % ICOS mirror transmission
       P.mirror_spacing = 50; % mirror spacing
       P.r1 = 1.5*2.54; % mirror radius
       P.R1 = 75;
-      P.CT1 = 0.2; % mirror center thickness
+      P.CT1 = 0.6; % mirror center thickness
+      P.M1dy = 0;
       P.r2 = .75*2.54;
       P.R2 = -25.4;
-      P.CT2 = .22;
+      P.CT2 = .6;
+      P.M2dy = 0;
 
       % Focusing lenses
       P.Lenses = {};
@@ -204,13 +210,6 @@ classdef ICOS_Model6 < opt_model_p
       P.dz = .03;
       
       % Lens types:
-      % Custom 3" poitive meniscus
-      P.LensTypes.Lens1.type = 'positive_meniscus';
-      P.LensTypes.Lens1.r = 3*2.54/2;
-      P.LensTypes.Lens1.R1 = 8.0122;
-      P.LensTypes.Lens1.R2 = 29.8275;
-      P.LensTypes.Lens1.CT = 0.9;
-      P.LensTypes.Lens1.EFL = 7.62;
       custom_lenses;
       isp_meniscuses; % Defines all their positive and negative meniscus lenses
       
@@ -240,7 +239,14 @@ classdef ICOS_Model6 < opt_model_p
     
     function M = P_model(P)
       T = P.T; % 250e-6; % transmittance
-      n_ZnSe = P.optics_n; % 2.4361;
+      mirrors_n = P.optics_n; % 2.4361;
+      if isfield(P,'mirrors_n') && ~isempty(P.mirrors_n)
+        mirrors_n = P.mirrors_n;
+      end
+      lenses_n = P.optics_n;
+      if isfield(P,'lenses_n') && ~isempty(P.lenses_n)
+        lenses_n = P.lenses_n;
+      end
       n_air = 1;
       d = P.mirror_spacing;
       if P.focus == 1
@@ -255,22 +261,44 @@ classdef ICOS_Model6 < opt_model_p
       M = opt_model(n_optics, P.max_rays);
       M.Spot_Size = P.beam_diameter;
       M.visible = P.visible;
+      if isfield(P,'M1dy')
+        M1dy = P.M1dy;
+      else
+        M1dy = 0;
+      end
       %M.Optic{1} = HRmirror('HM', P.Hr, P.HRC, CT, 0, P.HR, ...
       %  [-P.herriott_spacing 0 0], [1 0 0], n_air, n_air, P.visible);
-      M.Optic{2} = HRmirror('M1', P.r1, P.R1, P.CT1, T, 1-T, [0 0 0], ...
-        [1 0 0], n_ZnSe, n_air, P.visible && visibility(2));
+      if isfield(P,'dP') && ~isempty(P.dP)
+        M.Optic{2} = HRmirrorP('M1', P.r1, P.R1, P.CT1, T, 1-T, [0 0 0], ...
+          [1 M1dy 0], mirrors_n, n_air, P.visible && visibility(2),P.dP);
+      else
+        M.Optic{2} = HRmirror('M1', P.r1, P.R1, P.CT1, T, 1-T, [0 0 0], ...
+          [1 M1dy 0], mirrors_n, n_air, P.visible && visibility(2));
+      end
       % Ignore rays transmitted back through ICOS mirror:
       % M.Optic{2}.Surface{2}.emission_threshold = 2*T^2;
       M.Optic{2}.max_passes = P.Herriott_passes;
       M.Optic{2}.edges_visible = P.edges_visible;
       if P.stop_ICOS
-        M.Optic{3} = HRmirror('M2', P.r2, P.R2, P.CT2, 0, 0, [d 0 0], ...
-          [-1 0 0], n_ZnSe, n_air, P.visible && visibility(3));
+        M2T = 0;
+        M2R = 0;
       else
-        M.Optic{3} = HRmirror('M2', P.r2, P.R2, P.CT2, T, 1-T, [d 0 0], ...
-          [-1 0 0], n_ZnSe, n_air, P.visible && visibility(3));
-        M.Optic{3}.max_passes = P.ICOS_passes_per_injection;
+        M2T = T;
+        M2R = 1-T;
       end
+      if isfield(P,'M2dy')
+        M2dy = P.M2dy;
+      else
+        M2dy = 0;
+      end
+      if isfield(P,'dP') && ~isempty(P.dP)
+        M.Optic{3} = HRmirrorP('M2', P.r2, P.R2, P.CT2, M2T, M2R, [d 0 0], ...
+          [-1 M2dy 0], mirrors_n, n_air, P.visible && visibility(3),P.dP);
+      else
+        M.Optic{3} = HRmirror('M2', P.r2, P.R2, P.CT2, M2T, M2R, [d 0 0], ...
+          [-1 M2dy 0], mirrors_n, n_air, P.visible && visibility(3));
+      end
+      M.Optic{3}.max_passes = P.ICOS_passes_per_injection;
       M.Optic{3}.edges_visible = P.edges_visible;
       if P.focus > 0
         opt_n = 4;
@@ -285,11 +313,11 @@ classdef ICOS_Model6 < opt_model_p
               D = [1, 0, 0];
             end
             M.Optic{opt_n} = positive_meniscus(L.r, L.R1, L.R2, L.CT, L.EFL, ...
-              sprintf('L%d', i), [opt_X,0,0], D, n_ZnSe, n_air, ...
+              sprintf('L%d', i), [opt_X,0,0], D, lenses_n, n_air, ...
               P.visible && visibility(opt_n));
           elseif strcmp(L.type,'negative_meniscus')
             M.Optic{opt_n} = negative_meniscus(L.r, L.R1, L.R2, L.CT, L.EFL, ...
-              sprintf('L%d', i), [opt_X,0,0], [-1,0,0], n_ZnSe, n_air, ...
+              sprintf('L%d', i), [opt_X,0,0], [-1,0,0], lenses_n, n_air, ...
               P.visible && visibility(opt_n));
           end
           M.Optic{opt_n}.edges_visible = P.edges_visible;
@@ -301,14 +329,15 @@ classdef ICOS_Model6 < opt_model_p
           P.visible && visibility(opt_n), 15);
       end
       m = P.injection_scale;
-      APincident = M.Optic{2}.O + [0, m*P.y0, m*P.z0];
+      APincident = M.Optic{2}.O + [-P.CT1, m*P.y0, m*P.z0];
       Dincident = [1, -m*P.dy, m*P.dz];
       Ap = APincident - P.herriott_spacing*Dincident;
       M.Optic{1} = Herriott_Mirror('HM', P.Hr, P.HRC, P.HCT, P.HR, Ap, ...
-        P.beam_diameter, [-P.herriott_spacing 0 0], [1 0 0], ...
+        P.beam_diameter, [-P.herriott_spacing-P.CT1,0,0], [1 0 0], ...
         P.visible && visibility(1));
-      Pincident = M.Optic{2}.O + [0, m*P.y0 + P.beam_dy, m*P.z0 + P.beam_dz];
+      Pincident = M.Optic{2}.O + [-P.CT1, m*P.y0 + P.beam_dy, m*P.z0 + P.beam_dz];
       Oincident = Pincident - (P.herriott_spacing+1)*Dincident;
+      M = ICOS_Model6_hook(M, P);
       if P.propagate
         M.push_ray(opt_ray(Oincident, Dincident), 0, 1, 2);
       end
